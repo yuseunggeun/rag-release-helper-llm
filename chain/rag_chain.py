@@ -29,16 +29,14 @@ simple_prompt = ChatPromptTemplate.from_template("""
 질문: {question}
 """)
 
-# 질문 추출
-extract_question = RunnableMap({"question": RunnablePick("question")})
 
-retriever = Retriever(default_k=3)  # 기본 검색 개수는 3개로 설정
+# 질문 분기 처리
+def use_simple_chain(input: dict) -> bool:
+    return input.get("use_rag", 1) == 0
 
-# db에서 문서 검색
-retrieve_docs = RunnableMap({
-    "context": retriever,
-    "question": RunnablePick("question")
-})
+
+def return_true(_):
+    return True
 
 
 # 문서 내용 문자열로 병합
@@ -50,6 +48,18 @@ def combine_docs(doc_list):
     return "\n\n".join(doc.page_content for doc in doc_list)
 
 
+# 질문 추출
+extract_question = RunnableMap({"question": RunnablePick("question")})
+
+retriever = Retriever(default_k=3)  # 기본 검색 개수는 3개로 설정
+
+# db에서 문서 검색
+retrieve_docs = RunnableMap({
+    "context": retriever,
+    "question": RunnablePick("question")
+})
+
+# RAG 체인에서 사용할 문서와 질문 포맷팅
 format_context = RunnableMap({
     "context": RunnablePick("context") | combine_docs,
     "question": RunnablePick("question")
@@ -58,19 +68,9 @@ format_context = RunnableMap({
 # 전체 체인 연결
 rag_chain = (extract_question | retrieve_docs | format_context | prompt | llm)
 
-# 단순 질문에 대한 답변 체인 연결
+# 단순 질문에 대한 답변 체인 연결(RAG 미사용)
 simple_chain = (extract_question | simple_prompt | llm)
 
-
-# 질문 분기 처리
-def use_simple_chain(input: dict) -> bool:
-    return input.get("use_rag", 1) == 0
-
-
-def return_true(_):
-    return True
-
-
-# use_rag가 0인 경우에만 simple_chain로 분기
+# use_rag가 0인 경우에만 simple_chain로 분기하는 체인 설정
 branching_chain = RunnableBranch((use_simple_chain, simple_chain),
                                  (return_true, rag_chain), rag_chain)

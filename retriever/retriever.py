@@ -21,6 +21,7 @@ class Retriever(Runnable):
             #k = input.get("k", self.default_k)
             #self.retriever.search_kwargs["k"] = k
 
+            # 벡터 서치 실행
             docs = self.retriever.get_relevant_documents(question)
 
             if not docs:
