@@ -2,7 +2,7 @@ from langchain.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableMap
 from langchain_core.runnables.base import RunnablePassthrough
 from langchain_openai import ChatOpenAI
-from vectorstore.db import retriever
+from retriever.retriever import Retriever  # 벡터 검색 retriever
 from config import OPENAI_API_KEY
 
 # LLM 설정
@@ -23,6 +23,8 @@ prompt = ChatPromptTemplate.from_template("""
 # 질문 추출
 extract_question = RunnableMap({"question": RunnablePassthrough()})
 
+retriever = Retriever(default_k=3)  # 기본 검색 개수는 3개로 설정
+
 # db에서 문서 검색
 retrieve_docs = RunnableMap({
     "context": retriever,
@@ -32,6 +34,8 @@ retrieve_docs = RunnableMap({
 
 # 문서 내용 문자열로 병합
 def combine_docs(doc_list):
+    if not doc_list:
+        return "검색된 문서가 없습니다."
     return "\n\n".join(doc.page_content for doc in doc_list)
 
 

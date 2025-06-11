@@ -10,6 +10,3 @@ embedding = OpenAIEmbeddings(model="text-embedding-3-small",
 vectorstore = Chroma(collection_name="github_docs",
                      embedding_function=embedding,
                      persist_directory=CHROMA_DB_DIR)
-
-# 벡터서치를 위한 retriever 설정
-retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
