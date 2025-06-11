@@ -18,8 +18,8 @@ class Retriever(Runnable):
     def invoke(self, input: dict, config=None):
         try:
             question = input.get("question", "")
-            k = input.get("k", self.default_k)
-            self.retriever.search_kwargs["k"] = k
+            #k = input.get("k", self.default_k)
+            #self.retriever.search_kwargs["k"] = k
 
             docs = self.retriever.get_relevant_documents(question)
 

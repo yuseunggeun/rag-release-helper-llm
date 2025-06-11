@@ -1,10 +1,18 @@
 from fastapi import FastAPI
 from langserve import add_routes
-from chain.rag_chain import rag_chain
+from chain.rag_chain import branching_chain
+from pydantic import BaseModel
 
 # FastAPI 앱 + LangServe 연결
 app = FastAPI()
-add_routes(app, rag_chain, path="/chat")
+
+
+class ChatInput(BaseModel):
+    question: str
+    use_rag: int = 1
+
+
+add_routes(app, branching_chain, path="/chat", input_type=ChatInput)
 
 
 @app.get("/")

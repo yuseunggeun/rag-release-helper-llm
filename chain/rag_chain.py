@@ -1,6 +1,8 @@
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableMap
-from langchain_core.runnables.base import RunnablePassthrough
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.runnables import RunnableBranch
+from langchain_core.runnables import RunnablePick
 from langchain_openai import ChatOpenAI
 from retriever.retriever import Retriever  # 벡터 검색 retriever
 from config import OPENAI_API_KEY
@@ -20,29 +22,55 @@ prompt = ChatPromptTemplate.from_template("""
 질문: {question}
 """)
 
+simple_prompt = ChatPromptTemplate.from_template("""
+당신은 오픈소스 프로젝트에 대한 질문에 답하는 전문가입니다. 
+질문에 답해주세요.
+
+질문: {question}
+""")
+
 # 질문 추출
-extract_question = RunnableMap({"question": RunnablePassthrough()})
+extract_question = RunnableMap({"question": RunnablePick("question")})
 
 retriever = Retriever(default_k=3)  # 기본 검색 개수는 3개로 설정
 
 # db에서 문서 검색
 retrieve_docs = RunnableMap({
     "context": retriever,
-    "question": RunnablePassthrough()
+    "question": RunnablePick("question")
 })
 
 
 # 문서 내용 문자열로 병합
 def combine_docs(doc_list):
+    if not isinstance(doc_list, list):
+        return "리스트 형식의 문서가 아닙니다."
     if not doc_list:
         return "검색된 문서가 없습니다."
     return "\n\n".join(doc.page_content for doc in doc_list)
 
 
 format_context = RunnableMap({
-    "context": combine_docs,
-    "question": RunnablePassthrough()
+    "context": RunnablePick("context") | combine_docs,
+    "question": RunnablePick("question")
 })
 
 # 전체 체인 연결
 rag_chain = (extract_question | retrieve_docs | format_context | prompt | llm)
+
+# 단순 질문에 대한 답변 체인 연결
+simple_chain = (extract_question | simple_prompt | llm)
+
+
+# 질문 분기 처리
+def use_simple_chain(input: dict) -> bool:
+    return input.get("use_rag", 1) == 0
+
+
+def return_true(_):
+    return True
+
+
+# use_rag가 0인 경우에만 simple_chain로 분기
+branching_chain = RunnableBranch((use_simple_chain, simple_chain),
+                                 (return_true, rag_chain), rag_chain)
